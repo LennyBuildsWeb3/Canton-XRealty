@@ -1,0 +1,641 @@
+<!DOCTYPE html>
+<html lang="tr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Canton Realty XR | TOKENIZED REAL ESTATE Marketplace</title>
+    
+    <!-- A-Frame for WebXR -->
+    <script src="https://aframe.io/releases/1.5.0/aframe.min.js"></script>
+    <!-- A-Frame Extras for hand tracking -->
+    <script src="https://cdn.jsdelivr.net/gh/c-frame/aframe-extras@7.2.0/dist/aframe-extras.min.js"></script>
+    
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Instrument+Sans:wght@400;500;600;700&family=Space+Mono:wght@400;700&display=swap" rel="stylesheet">
+    
+    <style>
+        :root {
+            --canton-primary: #0a1628;
+            --canton-accent: #00d4aa;
+            --canton-gold: #ffd700;
+            --canton-surface: rgba(10, 22, 40, 0.95);
+            --text-primary: #ffffff;
+            --text-secondary: #8899aa;
+        }
+        
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+        
+        body {
+            font-family: 'Instrument Sans', sans-serif;
+            background: var(--canton-primary);
+            color: var(--text-primary);
+            overflow: hidden;
+        }
+        
+        /* Loading Screen */
+        #loading-screen {
+            position: fixed;
+            inset: 0;
+            background: linear-gradient(135deg, #0a1628 0%, #1a2d4a 50%, #0a1628 100%);
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            z-index: 1000;
+            transition: opacity 0.5s ease;
+        }
+        
+        #loading-screen.hidden {
+            opacity: 0;
+            pointer-events: none;
+        }
+        
+        .logo-container {
+            position: relative;
+            margin-bottom: 3rem;
+        }
+        
+        .logo-ring {
+            width: 120px;
+            height: 120px;
+            border: 3px solid transparent;
+            border-top-color: var(--canton-accent);
+            border-radius: 50%;
+            animation: spin 1.5s linear infinite;
+        }
+        
+        .logo-text {
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            font-family: 'Space Mono', monospace;
+            font-size: 1.5rem;
+            font-weight: 700;
+            color: var(--canton-accent);
+        }
+        
+        @keyframes spin {
+            to { transform: rotate(360deg); }
+        }
+        
+        .loading-title {
+            font-size: 2rem;
+            font-weight: 600;
+            margin-bottom: 0.5rem;
+            background: linear-gradient(90deg, var(--canton-accent), var(--canton-gold));
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            background-clip: text;
+        }
+        
+        .loading-subtitle {
+            color: var(--text-secondary);
+            font-size: 1rem;
+            letter-spacing: 0.1em;
+        }
+        
+        /* 2D UI Overlay */
+        #ui-overlay {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            padding: 1.5rem 2rem;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            z-index: 100;
+            background: linear-gradient(180deg, rgba(10,22,40,0.9) 0%, transparent 100%);
+        }
+        
+        .brand {
+            display: flex;
+            align-items: center;
+            gap: 0.75rem;
+        }
+        
+        .brand-icon {
+            width: 40px;
+            height: 40px;
+            background: var(--canton-accent);
+            border-radius: 8px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-family: 'Space Mono', monospace;
+            font-weight: 700;
+            font-size: 1.2rem;
+            color: var(--canton-primary);
+        }
+        
+        .brand-name {
+            font-weight: 600;
+            font-size: 1.25rem;
+        }
+        
+        .brand-tag {
+            font-size: 0.7rem;
+            color: var(--canton-accent);
+            letter-spacing: 0.15em;
+            margin-top: 2px;
+        }
+        
+        .network-status {
+            display: flex;
+            align-items: center;
+            gap: 1.5rem;
+        }
+        
+        .status-item {
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+            font-size: 0.85rem;
+            color: var(--text-secondary);
+        }
+        
+        .status-dot {
+            width: 8px;
+            height: 8px;
+            border-radius: 50%;
+            background: var(--canton-accent);
+            animation: pulse 2s ease-in-out infinite;
+        }
+        
+        @keyframes pulse {
+            0%, 100% { opacity: 1; }
+            50% { opacity: 0.4; }
+        }
+        
+        #enter-vr-btn {
+            background: linear-gradient(135deg, var(--canton-accent), #00a888);
+            color: var(--canton-primary);
+            border: none;
+            padding: 0.875rem 2rem;
+            font-family: 'Instrument Sans', sans-serif;
+            font-weight: 600;
+            font-size: 1rem;
+            border-radius: 8px;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            letter-spacing: 0.05em;
+        }
+        
+        #enter-vr-btn:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 8px 30px rgba(0, 212, 170, 0.4);
+        }
+        
+        #enter-vr-btn:disabled {
+            background: #334455;
+            cursor: not-allowed;
+            transform: none;
+            box-shadow: none;
+        }
+        
+        /* Property Info Panel (2D fallback) */
+        #property-panel {
+            position: fixed;
+            bottom: 2rem;
+            left: 50%;
+            transform: translateX(-50%);
+            background: var(--canton-surface);
+            border: 1px solid rgba(0, 212, 170, 0.3);
+            border-radius: 16px;
+            padding: 1.5rem 2rem;
+            min-width: 400px;
+            backdrop-filter: blur(20px);
+            z-index: 100;
+            opacity: 0;
+            transition: opacity 0.4s ease;
+        }
+        
+        #property-panel.visible {
+            opacity: 1;
+        }
+        
+        .panel-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: flex-start;
+            margin-bottom: 1rem;
+            padding-bottom: 1rem;
+            border-bottom: 1px solid rgba(255,255,255,0.1);
+        }
+        
+        .property-name {
+            font-size: 1.25rem;
+            font-weight: 600;
+            margin-bottom: 0.25rem;
+        }
+        
+        .property-location {
+            color: var(--text-secondary);
+            font-size: 0.9rem;
+        }
+        
+        .token-badge {
+            background: rgba(0, 212, 170, 0.15);
+            border: 1px solid var(--canton-accent);
+            color: var(--canton-accent);
+            padding: 0.4rem 0.75rem;
+            border-radius: 20px;
+            font-size: 0.75rem;
+            font-weight: 600;
+            letter-spacing: 0.05em;
+        }
+        
+        .property-stats {
+            display: grid;
+            grid-template-columns: repeat(3, 1fr);
+            gap: 1rem;
+            margin-bottom: 1.25rem;
+        }
+        
+        .stat {
+            text-align: center;
+        }
+        
+        .stat-value {
+            font-family: 'Space Mono', monospace;
+            font-size: 1.1rem;
+            font-weight: 700;
+            color: var(--canton-accent);
+        }
+        
+        .stat-label {
+            font-size: 0.75rem;
+            color: var(--text-secondary);
+            letter-spacing: 0.05em;
+            margin-top: 0.25rem;
+        }
+        
+        .invest-btn {
+            width: 100%;
+            background: linear-gradient(135deg, var(--canton-gold), #ffaa00);
+            color: var(--canton-primary);
+            border: none;
+            padding: 1rem;
+            font-family: 'Instrument Sans', sans-serif;
+            font-weight: 700;
+            font-size: 1rem;
+            border-radius: 8px;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            letter-spacing: 0.1em;
+        }
+        
+        .invest-btn:hover {
+            transform: scale(1.02);
+            box-shadow: 0 8px 30px rgba(255, 215, 0, 0.3);
+        }
+        
+        /* Instructions */
+        #instructions {
+            position: fixed;
+            bottom: 2rem;
+            right: 2rem;
+            background: var(--canton-surface);
+            border: 1px solid rgba(255,255,255,0.1);
+            border-radius: 12px;
+            padding: 1rem 1.25rem;
+            font-size: 0.85rem;
+            color: var(--text-secondary);
+            z-index: 100;
+        }
+        
+        #instructions h4 {
+            color: var(--text-primary);
+            margin-bottom: 0.5rem;
+            font-size: 0.9rem;
+        }
+        
+        #instructions ul {
+            list-style: none;
+            line-height: 1.6;
+        }
+        
+        #instructions li::before {
+            content: "→ ";
+            color: var(--canton-accent);
+        }
+        
+        /* A-Frame Scene Styles */
+        .a-enter-vr-button {
+            display: none !important;
+        }
+    </style>
+</head>
+<body>
+    <!-- Loading Screen -->
+    <div id="loading-screen">
+        <div class="logo-container">
+            <div class="logo-ring"></div>
+            <span class="logo-text">CR</span>
+        </div>
+        <h1 class="loading-title">Canton Realty XR</h1>
+        <p class="loading-subtitle">INITIALIZING MIXED REALITY MARKETPLACE</p>
+    </div>
+
+    <!-- 2D UI Overlay -->
+    <div id="ui-overlay">
+        <div class="brand">
+            <div class="brand-icon">CR</div>
+            <div>
+                <div class="brand-name">Canton Realty</div>
+                <div class="brand-tag">TOKENIZED REAL ESTATE</div>
+            </div>
+        </div>
+        
+        <div class="network-status">
+            <div class="status-item">
+                <span class="status-dot"></span>
+                <span>Canton Network</span>
+            </div>
+            <div class="status-item">
+                <span class="status-dot" style="background: var(--canton-gold);"></span>
+                <span>3 Properties Live</span>
+            </div>
+            <button id="enter-vr-btn">ENTER MIXED REALITY</button>
+        </div>
+    </div>
+
+    <!-- Property Info Panel -->
+    <div id="property-panel">
+        <div class="panel-header">
+            <div>
+                <div class="property-name" id="panel-name">Bosphorus Residence</div>
+                <div class="property-location" id="panel-location">Istanbul, Turkey</div>
+            </div>
+            <span class="token-badge">VERIFIED RWA</span>
+        </div>
+        <div class="property-stats">
+            <div class="stat">
+                <div class="stat-value" id="panel-price">$2.4M</div>
+                <div class="stat-label">TOTAL VALUE</div>
+            </div>
+            <div class="stat">
+                <div class="stat-value" id="panel-yield">8.2%</div>
+                <div class="stat-label">ANNUAL YIELD</div>
+            </div>
+            <div class="stat">
+                <div class="stat-value" id="panel-tokens">2,400</div>
+                <div class="stat-label">TOKENS</div>
+            </div>
+        </div>
+        <button class="invest-btn" onclick="handleInvest()">INVEST NOW</button>
+    </div>
+
+    <!-- Instructions -->
+    <div id="instructions">
+        <h4>Controls</h4>
+        <ul>
+            <li>Click properties to view details</li>
+            <li>Drag to rotate view</li>
+        </ul>
+    </div>
+
+    <!-- A-Frame Scene -->
+    <a-scene 
+        id="scene"
+        webxr="requiredFeatures: local-floor, hand-tracking; optionalFeatures: bounded-floor, plane-detection"
+        renderer="colorManagement: true; physicallyCorrectLights: true; antialias: true"
+        loading-screen="enabled: false"
+    >
+        <!-- Assets -->
+        <a-assets timeout="30000">
+            <!-- Placeholder textures - these would be replaced with actual property images -->
+            <img id="floor-texture" src="https://cdn.aframe.io/a-painter/images/floor.jpg" crossorigin="anonymous">
+            <a-mixin id="controller-ray" raycaster="objects: *; far: 50; showLine: true; lineColor: #00d4aa; lineOpacity: 0.75"></a-mixin>
+        </a-assets>
+
+        <!-- Environment Lighting -->
+        <a-entity light="type: ambient; color: #446688; intensity: 0.4"></a-entity>
+        <a-entity light="type: directional; color: #ffffff; intensity: 0.8" position="1 4 2"></a-entity>
+        <a-entity light="type: point; color: #00d4aa; intensity: 0.5; distance: 10" position="0 2 0"></a-entity>
+
+        <!-- Ground plane for MR -->
+        <a-plane 
+            id="ground"
+            rotation="-90 0 0" 
+            width="20" 
+            height="20" 
+            material="color: #1a2d4a; opacity: 0.3; transparent: true"
+            class="collidable"
+        ></a-plane>
+
+        <!-- Property 1: Luxury Villa -->
+        <a-entity
+            id="property-1"
+            class="property clickable"
+            position="-1.5 0.5 -2"
+            data-property-id="prop-001"
+            scale="0.3 0.3 0.3"
+            clickable
+        >
+            <!-- Building Base -->
+            <a-box 
+                position="0 0.5 0" 
+                width="2" 
+                height="1" 
+                depth="1.5"
+                material="color: #e8e4e0; roughness: 0.8"
+            ></a-box>
+            <!-- Upper Floor -->
+            <a-box 
+                position="0 1.3 0" 
+                width="1.8" 
+                height="0.6" 
+                depth="1.3"
+                material="color: #f5f2ef; roughness: 0.7"
+            ></a-box>
+            <!-- Roof -->
+            <a-box 
+                position="0 1.8 0" 
+                width="2.1" 
+                height="0.1" 
+                depth="1.6"
+                material="color: #2a3d50; roughness: 0.5"
+            ></a-box>
+            <!-- Windows -->
+            <a-box position="-0.5 0.5 0.76" width="0.4" height="0.5" depth="0.05" material="color: #88ccff; metalness: 0.8; roughness: 0.1"></a-box>
+            <a-box position="0.5 0.5 0.76" width="0.4" height="0.5" depth="0.05" material="color: #88ccff; metalness: 0.8; roughness: 0.1"></a-box>
+            <a-box position="0 1.3 0.66" width="0.6" height="0.35" depth="0.05" material="color: #88ccff; metalness: 0.8; roughness: 0.1"></a-box>
+            <!-- Pool -->
+            <a-box position="1.3 0.05 0" width="0.8" height="0.1" depth="1.2" material="color: #00aacc; metalness: 0.3; roughness: 0.1"></a-box>
+            <!-- Garden -->
+            <a-cylinder position="-1.2 0.3 0.5" radius="0.15" height="0.6" material="color: #228844; roughness: 0.9"></a-cylinder>
+            <a-cylinder position="-1.2 0.3 -0.5" radius="0.15" height="0.6" material="color: #228844; roughness: 0.9"></a-cylinder>
+            
+            <!-- Info Label -->
+            <a-entity
+                position="0 2.5 0"
+                text="value: Central Park Penthouse; color: #00d4aa; align: center; width: 4; font: roboto"
+                look-at="[camera]"
+            ></a-entity>
+            <a-entity
+                position="0 2.2 0"
+                text="value: $3,200,000 | 8.5% APY; color: #ffffff; align: center; width: 3; font: roboto"
+                look-at="[camera]"
+            ></a-entity>
+        </a-entity>
+
+        <!-- Property 2: Modern Apartment -->
+        <a-entity
+            id="property-2"
+            class="property clickable"
+            position="0 0.5 -2.5"
+            data-property-id="prop-002"
+            scale="0.3 0.3 0.3"
+            clickable
+        >
+            <!-- Main Tower -->
+            <a-box 
+                position="0 1.5 0" 
+                width="1" 
+                height="3" 
+                depth="1"
+                material="color: #3a4a5a; roughness: 0.3; metalness: 0.5"
+            ></a-box>
+            <!-- Glass Facade -->
+            <a-box 
+                position="0 1.5 0.51" 
+                width="0.9" 
+                height="2.8" 
+                depth="0.02"
+                material="color: #66aadd; metalness: 0.9; roughness: 0.05; opacity: 0.7; transparent: true"
+            ></a-box>
+            <!-- Balconies -->
+            <a-box position="0 0.8 0.6" width="0.8" height="0.05" depth="0.3" material="color: #2a3a4a"></a-box>
+            <a-box position="0 1.8 0.6" width="0.8" height="0.05" depth="0.3" material="color: #2a3a4a"></a-box>
+            <a-box position="0 2.8 0.6" width="0.8" height="0.05" depth="0.3" material="color: #2a3a4a"></a-box>
+            
+            <!-- Info Label -->
+            <a-entity
+                position="0 3.5 0"
+                text="value: Hudson Yards Tower; color: #00d4aa; align: center; width: 4; font: roboto"
+                look-at="[camera]"
+            ></a-entity>
+            <a-entity
+                position="0 3.2 0"
+                text="value: $1,200,000 | 6.8% APY; color: #ffffff; align: center; width: 3; font: roboto"
+                look-at="[camera]"
+            ></a-entity>
+        </a-entity>
+
+        <!-- Property 3: Commercial Building -->
+        <a-entity
+            id="property-3"
+            class="property clickable"
+            position="1.5 0.5 -2"
+            data-property-id="prop-003"
+            scale="0.3 0.3 0.3"
+            clickable
+        >
+            <!-- Main Structure -->
+            <a-box 
+                position="0 1 0" 
+                width="2" 
+                height="2" 
+                depth="1.5"
+                material="color: #d4c4b0; roughness: 0.6"
+            ></a-box>
+            <!-- Glass Entrance -->
+            <a-box 
+                position="0 0.4 0.76" 
+                width="0.8" 
+                height="0.8" 
+                depth="0.02"
+                material="color: #88ccff; metalness: 0.8; roughness: 0.1"
+            ></a-box>
+            <!-- Windows Grid -->
+            <a-box position="-0.6 1.4 0.76" width="0.35" height="0.35" depth="0.02" material="color: #88ccff; metalness: 0.8"></a-box>
+            <a-box position="0 1.4 0.76" width="0.35" height="0.35" depth="0.02" material="color: #88ccff; metalness: 0.8"></a-box>
+            <a-box position="0.6 1.4 0.76" width="0.35" height="0.35" depth="0.02" material="color: #88ccff; metalness: 0.8"></a-box>
+            <!-- Roof Detail -->
+            <a-box position="0 2.1 0" width="2.1" height="0.1" depth="1.6" material="color: #4a5a6a"></a-box>
+            
+            <!-- Info Label -->
+            <a-entity
+                position="0 2.8 0"
+                text="value: Wall Street Plaza; color: #00d4aa; align: center; width: 4; font: roboto"
+                look-at="[camera]"
+            ></a-entity>
+            <a-entity
+                position="0 2.5 0"
+                text="value: $6,500,000 | 9.3% APY; color: #ffffff; align: center; width: 3; font: roboto"
+                look-at="[camera]"
+            ></a-entity>
+        </a-entity>
+
+        <!-- Canton Network Visualization (floating data orbs) -->
+        <a-entity id="canton-particles" position="0 1 -2">
+            <a-sphere position="-2 1 0" radius="0.05" material="color: #00d4aa; emissive: #00d4aa; emissiveIntensity: 0.5" animation="property: position; to: 2 1 0; dur: 8000; easing: linear; loop: true"></a-sphere>
+            <a-sphere position="2 0.5 0.5" radius="0.03" material="color: #ffd700; emissive: #ffd700; emissiveIntensity: 0.5" animation="property: position; to: -2 0.5 0.5; dur: 6000; easing: linear; loop: true"></a-sphere>
+            <a-sphere position="0 1.5 -1" radius="0.04" material="color: #00d4aa; emissive: #00d4aa; emissiveIntensity: 0.5" animation="property: position; to: 0 1.5 1; dur: 5000; easing: linear; loop: true; dir: alternate"></a-sphere>
+        </a-entity>
+
+        <!-- Camera Rig -->
+        <a-entity id="rig" position="0 1.6 1">
+            <a-camera 
+                id="camera"
+                look-controls="pointerLockEnabled: false"
+                wasd-controls="enabled: false"
+            >
+                <!-- Cursor for desktop interaction -->
+                <a-cursor
+                    id="cursor"
+                    fuse="false"
+                    raycaster="objects: .property; far: 50"
+                    rayOrigin="mouse"
+                ></a-cursor>
+            </a-camera>
+
+            <!-- Quest 3 / Standard WebXR Controllers -->
+            <a-entity id="left-hand" laser-controls="hand: left" raycaster="objects: *; far: 50; near: 0.5; interval: 100" line="color: #00d4aa; opacity: 0.75" cursor="fuse: false" controller-interaction></a-entity>
+            <a-entity id="right-hand" laser-controls="hand: right" raycaster="objects: *; far: 50; near: 0.5; interval: 100" line="color: #00d4aa; opacity: 0.75" cursor="fuse: false" controller-interaction></a-entity>
+        </a-entity>
+        <!-- VR/MR UI Panel (Hidden by default) -->
+        <a-entity id="vr-ui-panel" position="0 1.5 -1" visible="false">
+            <!-- Background -->
+            <a-plane width="1.2" height="0.8" color="#0a1628" opacity="0.95" material="shader: flat; transparent: true" class="ui-bg">
+            </a-plane>
+            
+            <!-- Content Container -->
+            <a-entity position="0 0 0.02">
+                <!-- Title -->
+                <a-text id="vr-panel-title" value="Property Name" align="center" position="0 0.25 0" width="1.8" color="#00d4aa" font="roboto"></a-text>
+                
+                <!-- Details -->
+                <a-text id="vr-panel-details" value="$0 | 0% Yield" align="center" position="0 0.15 0" width="1.4" color="#ffffff" font="roboto"></a-text>
+                <a-text id="vr-panel-tokens" value="Available Tokens: 0" align="center" position="0 0.05 0" width="1.2" color="#8899aa" font="roboto"></a-text>
+
+                <!-- Invest Button -->
+                <a-entity id="vr-btn-invest" position="0 -0.15 0" class="clickable"
+                            geometry="primitive: plane; width: 0.5; height: 0.15"
+                            material="color: #ffd700; shader: flat">
+                    <a-text value="INVEST NOW" align="center" color="#0a1628" width="1.5" position="0 0 0.01" font="roboto" weight="bold"></a-text>
+                </a-entity>
+
+                <!-- Close Button -->
+                <a-entity id="vr-btn-close" position="0 -0.3 0" class="clickable"
+                            geometry="primitive: plane; width: 0.3; height: 0.1"
+                            material="color: #334455; shader: flat">
+                    <a-text value="CLOSE" align="center" color="#ffffff" width="1.2" position="0 0 0.01" font="roboto"></a-text>
+                </a-entity>
+            </a-entity>
+        </a-entity>
+    </a-scene>
+
+    <!-- Mock Canton Data -->
+    <script src="src/data/mock-canton-data.js"></script>
+    <!-- Main App Logic -->
+    <script src="src/app.js"></script>
+</body>
+</html>

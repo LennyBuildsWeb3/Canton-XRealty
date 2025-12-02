@@ -1,0 +1,363 @@
+-- Copyright (c) 2024 Canton Realty XR
+-- SPDX-License-Identifier: Apache-2.0
+
+-- | Real Estate Tokenization Smart Contracts for Canton Network
+-- | This module implements RWA (Real World Asset) tokenization for real estate properties
+module RealEstateToken where
+
+import DA.Time
+import DA.List
+import DA.Optional
+
+-- ============================================
+-- CORE DATA TYPES
+-- ============================================
+
+-- | Property type classification
+data PropertyType = Residential | Commercial | Industrial | Land
+  deriving (Eq, Show)
+
+-- | Geographic location of the property
+data Location = Location with
+    city : Text
+    district : Text
+    country : Text
+    latitude : Decimal
+    longitude : Decimal
+  deriving (Eq, Show)
+
+-- | Property valuation details
+data Valuation = Valuation with
+    totalValue : Decimal        -- Total property value in USD
+    pricePerToken : Decimal     -- Price per token in USD
+    lastAppraisal : Date        -- Date of last appraisal
+    appraiser : Text            -- Certified appraiser name
+  deriving (Eq, Show)
+
+-- | Yield and income information
+data YieldInfo = YieldInfo with
+    annualYield : Decimal       -- Annual percentage yield
+    monthlyRent : Decimal       -- Monthly rental income in USD
+    occupancyRate : Decimal     -- Current occupancy percentage
+    lastDistribution : Date     -- Last dividend distribution date
+  deriving (Eq, Show)
+
+-- | Compliance and regulatory status
+data ComplianceStatus = ComplianceStatus with
+    kycVerified : Bool          -- KYC verification status
+    accreditedOnly : Bool       -- Requires accredited investor status
+    jurisdictions : [Text]      -- Allowed investment jurisdictions
+    regulatoryApprovals : [Text] -- List of regulatory approvals (SPK, SEC, etc.)
+  deriving (Eq, Show)
+
+-- | Document reference with hash for verification
+data DocumentRef = DocumentRef with
+    docType : Text              -- Document type (title, appraisal, etc.)
+    ipfsHash : Text             -- IPFS content hash
+    verified : Bool             -- Verification status
+  deriving (Eq, Show)
+
+-- ============================================
+-- PROPERTY TEMPLATE
+-- ============================================
+
+-- | Main template representing a tokenized real estate property
+template RealEstateProperty
+  with
+    issuer : Party              -- Property issuer (SPV or asset manager)
+    regulator : Party           -- Regulatory oversight party
+    propertyId : Text           -- Unique property identifier
+    name : Text                 -- Property name
+    propertyType : PropertyType -- Type of property
+    location : Location         -- Property location
+    valuation : Valuation       -- Current valuation
+    yieldInfo : YieldInfo       -- Yield information
+    compliance : ComplianceStatus -- Compliance data
+    documents : [DocumentRef]   -- Associated documents
+    totalTokens : Int           -- Total token supply
+    availableTokens : Int       -- Tokens available for purchase
+    tokenSymbol : Text          -- Token symbol (e.g., "BOSV")
+  where
+    signatory issuer
+    observer regulator
+
+    -- Ensure property has valid token supply
+    ensure totalTokens > 0 && availableTokens >= 0 && availableTokens <= totalTokens
+
+    -- | Update property valuation (only issuer can do this)
+    choice UpdateValuation : ContractId RealEstateProperty
+      with
+        newValuation : Valuation
+      controller issuer
+      do
+        create this with valuation = newValuation
+
+    -- | Update yield information after rental income changes
+    choice UpdateYield : ContractId RealEstateProperty
+      with
+        newYieldInfo : YieldInfo
+      controller issuer
+      do
+        create this with yieldInfo = newYieldInfo
+
+    -- | Add a verified document to the property
+    choice AddDocument : ContractId RealEstateProperty
+      with
+        newDocument : DocumentRef
+      controller issuer
+      do
+        create this with documents = newDocument :: documents
+
+    -- | Issue tokens to an investor (reduces available supply)
+    nonconsuming choice IssueTokens : ContractId RealEstateTokenHolding
+      with
+        investor : Party
+        tokenAmount : Int
+        purchasePrice : Decimal
+      controller issuer
+      do
+        -- Verify sufficient tokens available
+        assertMsg "Insufficient tokens available" (tokenAmount <= availableTokens)
+        
+        -- Create token holding for investor
+        create RealEstateTokenHolding with
+          holder = investor
+          issuer = issuer
+          propertyId = propertyId
+          propertyName = name
+          tokenSymbol = tokenSymbol
+          tokens = tokenAmount
+          purchasePrice = purchasePrice
+          purchaseDate = toDateUTC (getTime this)
+          yieldEntitlement = (intToDecimal tokenAmount / intToDecimal totalTokens) * yieldInfo.annualYield
+
+-- ============================================
+-- TOKEN HOLDING TEMPLATE
+-- ============================================
+
+-- | Represents an investor's token holding in a property
+template RealEstateTokenHolding
+  with
+    holder : Party              -- Token holder (investor)
+    issuer : Party              -- Original issuer
+    propertyId : Text           -- Reference to property
+    propertyName : Text         -- Property name for display
+    tokenSymbol : Text          -- Token symbol
+    tokens : Int                -- Number of tokens held
+    purchasePrice : Decimal     -- Total purchase price paid
+    purchaseDate : Date         -- Date of purchase
+    yieldEntitlement : Decimal  -- Percentage of yield entitled to
+  where
+    signatory issuer, holder
+
+    -- Ensure valid holding
+    ensure tokens > 0
+
+    -- | Transfer tokens to another investor
+    choice Transfer : ContractId RealEstateTokenHolding
+      with
+        newHolder : Party
+        transferTokens : Int
+      controller holder
+      do
+        -- Verify transfer amount
+        assertMsg "Invalid transfer amount" (transferTokens > 0 && transferTokens <= tokens)
+        
+        -- Create new holding for recipient
+        newHolding <- create RealEstateTokenHolding with
+          holder = newHolder
+          issuer = issuer
+          propertyId = propertyId
+          propertyName = propertyName
+          tokenSymbol = tokenSymbol
+          tokens = transferTokens
+          purchasePrice = (purchasePrice / intToDecimal tokens) * intToDecimal transferTokens
+          purchaseDate = toDateUTC (getTime this)
+          yieldEntitlement = yieldEntitlement * (intToDecimal transferTokens / intToDecimal tokens)
+
+        -- If partial transfer, create remaining holding for original holder
+        if transferTokens < tokens then do
+          create this with
+            tokens = tokens - transferTokens
+            purchasePrice = purchasePrice - ((purchasePrice / intToDecimal tokens) * intToDecimal transferTokens)
+            yieldEntitlement = yieldEntitlement * (intToDecimal (tokens - transferTokens) / intToDecimal tokens)
+          pure newHolding
+        else
+          pure newHolding
+
+    -- | Claim dividend distribution
+    choice ClaimDividend : ContractId DividendPayment
+      with
+        distributionAmount : Decimal
+        distributionDate : Date
+      controller issuer
+      do
+        -- Calculate holder's share
+        let holderShare = distributionAmount * (yieldEntitlement / 100.0)
+        
+        create DividendPayment with
+          recipient = holder
+          payer = issuer
+          propertyId = propertyId
+          amount = holderShare
+          paymentDate = distributionDate
+          tokenSymbol = tokenSymbol
+
+-- ============================================
+-- DIVIDEND PAYMENT TEMPLATE
+-- ============================================
+
+-- | Represents a dividend payment to a token holder
+template DividendPayment
+  with
+    recipient : Party           -- Payment recipient
+    payer : Party               -- Payment issuer
+    propertyId : Text           -- Property reference
+    amount : Decimal            -- Payment amount in USD
+    paymentDate : Date          -- Date of payment
+    tokenSymbol : Text          -- Token symbol
+  where
+    signatory payer
+    observer recipient
+
+    -- | Acknowledge receipt of payment
+    choice AcknowledgePayment : ()
+      controller recipient
+      do
+        pure ()
+
+-- ============================================
+-- INVESTOR REGISTRY TEMPLATE
+-- ============================================
+
+-- | Investor qualification and KYC status
+data InvestorStatus = 
+    Pending 
+  | Verified 
+  | Accredited 
+  | Rejected
+  deriving (Eq, Show)
+
+-- | Registry of qualified investors (Canton privacy feature)
+template InvestorRegistry
+  with
+    registrar : Party           -- KYC/AML verification authority
+    investor : Party            -- Registered investor
+    investorId : Text           -- Unique investor identifier
+    jurisdiction : Text         -- Investor's jurisdiction
+    status : InvestorStatus     -- Current qualification status
+    kycVerifiedDate : Optional Date  -- KYC verification date
+    accreditedDate : Optional Date   -- Accreditation date (if applicable)
+    maxInvestment : Decimal     -- Maximum allowed investment
+  where
+    signatory registrar
+    observer investor
+
+    -- | Update investor status after KYC review
+    choice UpdateStatus : ContractId InvestorRegistry
+      with
+        newStatus : InvestorStatus
+        verificationDate : Date
+      controller registrar
+      do
+        case newStatus of
+          Verified -> create this with 
+            status = Verified
+            kycVerifiedDate = Some verificationDate
+          Accredited -> create this with 
+            status = Accredited
+            kycVerifiedDate = Some verificationDate
+            accreditedDate = Some verificationDate
+          _ -> create this with status = newStatus
+
+    -- | Check if investor can invest in a property
+    nonconsuming choice CheckEligibility : Bool
+      with
+        propertyCompliance : ComplianceStatus
+      controller registrar
+      do
+        -- Check jurisdiction
+        let jurisdictionOk = jurisdiction `elem` propertyCompliance.jurisdictions
+        
+        -- Check accreditation requirement
+        let accreditedOk = not propertyCompliance.accreditedOnly || status == Accredited
+        
+        -- Check KYC requirement
+        let kycOk = not propertyCompliance.kycVerified || status `elem` [Verified, Accredited]
+        
+        pure (jurisdictionOk && accreditedOk && kycOk)
+
+-- ============================================
+-- PURCHASE ORDER TEMPLATE
+-- ============================================
+
+-- | Token purchase order workflow
+data OrderStatus = 
+    OrderPending 
+  | OrderApproved 
+  | OrderExecuted 
+  | OrderRejected
+  deriving (Eq, Show)
+
+template TokenPurchaseOrder
+  with
+    buyer : Party               -- Purchasing investor
+    issuer : Party              -- Token issuer
+    regulator : Party           -- Regulatory observer
+    propertyId : Text           -- Target property
+    tokenAmount : Int           -- Tokens to purchase
+    offerPrice : Decimal        -- Price offered per token
+    totalAmount : Decimal       -- Total purchase amount
+    orderDate : Time            -- Order timestamp
+    status : OrderStatus        -- Current order status
+    complianceChecked : Bool    -- Whether compliance was verified
+  where
+    signatory buyer
+    observer issuer, regulator
+
+    -- | Approve order after compliance check
+    choice ApproveOrder : ContractId TokenPurchaseOrder
+      with
+        approvalNote : Text
+      controller issuer
+      do
+        assertMsg "Compliance not verified" complianceChecked
+        create this with status = OrderApproved
+
+    -- | Execute approved order
+    choice ExecuteOrder : ContractId RealEstateTokenHolding
+      with
+        propertyContract : ContractId RealEstateProperty
+      controller issuer
+      do
+        assertMsg "Order not approved" (status == OrderApproved)
+        
+        -- Exercise IssueTokens on property contract
+        exercise propertyContract IssueTokens with
+          investor = buyer
+          tokenAmount = tokenAmount
+          purchasePrice = totalAmount
+
+    -- | Reject order with reason
+    choice RejectOrder : ContractId TokenPurchaseOrder
+      with
+        rejectionReason : Text
+      controller issuer
+      do
+        create this with status = OrderRejected
+
+-- ============================================
+-- HELPER FUNCTIONS
+-- ============================================
+
+-- | Convert integer to decimal for calculations
+intToDecimal : Int -> Decimal
+intToDecimal i = fromIntegral i
+
+-- | Get current time (placeholder - in real DAML this comes from ledger)
+getTime : a -> Time
+getTime _ = time (date 2024 Dec 20) 0 0 0
+
+-- | Convert time to date
+toDateUTC : Time -> Date
+toDateUTC t = date 2024 Dec 20  -- Simplified for demo

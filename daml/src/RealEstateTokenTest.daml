@@ -1,0 +1,361 @@
+-- Copyright (c) 2024 Canton Realty XR
+-- SPDX-License-Identifier: Apache-2.0
+
+-- | Test scenarios for Real Estate Token contracts
+module RealEstateTokenTest where
+
+import RealEstateToken
+import Daml.Script
+import DA.Date
+
+-- ============================================
+-- TEST SETUP
+-- ============================================
+
+data TestParties = TestParties with
+  issuer : Party
+  regulator : Party
+  investor1 : Party
+  investor2 : Party
+
+setupParties : Script TestParties
+setupParties = do
+  issuer <- allocateParty "IstanbulRETrust"
+  regulator <- allocateParty "SPK_Regulator"
+  investor1 <- allocateParty "AccreditedInvestor1"
+  investor2 <- allocateParty "RetailInvestor2"
+  pure TestParties with ..
+
+-- ============================================
+-- TEST: Create Bosphorus Villa Property
+-- ============================================
+
+testCreateProperty : Script (ContractId RealEstateProperty)
+testCreateProperty = do
+  parties <- setupParties
+
+  let 
+    location = Location with
+      city = "Istanbul"
+      district = "Bebek"
+      country = "Turkey"
+      latitude = 41.0764
+      longitude = 29.0432
+
+    valuation = Valuation with
+      totalValue = 2400000.0
+      pricePerToken = 1000.0
+      lastAppraisal = date 2024 Dec 15
+      appraiser = "TSKB Real Estate Valuation"
+
+    yieldInfo = YieldInfo with
+      annualYield = 8.2
+      monthlyRent = 12000.0
+      occupancyRate = 95.0
+      lastDistribution = date 2024 Dec 1
+
+    compliance = ComplianceStatus with
+      kycVerified = True
+      accreditedOnly = False
+      jurisdictions = ["TR", "EU", "US"]
+      regulatoryApprovals = ["SPK", "BDDK"]
+
+    titleDoc = DocumentRef with
+      docType = "TitleDeed"
+      ipfsHash = "QmXoypizjW3WknFiJnKLwHCnL72vedxjQkDDP1mXWo6uco"
+      verified = True
+
+  -- Create the property
+  propertyCid <- submit parties.issuer do
+    createCmd RealEstateProperty with
+      issuer = parties.issuer
+      regulator = parties.regulator
+      propertyId = "prop-001"
+      name = "Bosphorus Villa"
+      propertyType = Residential
+      location = location
+      valuation = valuation
+      yieldInfo = yieldInfo
+      compliance = compliance
+      documents = [titleDoc]
+      totalTokens = 2400
+      availableTokens = 2400
+      tokenSymbol = "BOSV"
+
+  pure propertyCid
+
+-- ============================================
+-- TEST: Investor Registration & KYC
+-- ============================================
+
+testInvestorRegistration : Script (ContractId InvestorRegistry)
+testInvestorRegistration = do
+  parties <- setupParties
+
+  -- Register investor
+  registryCid <- submit parties.regulator do
+    createCmd InvestorRegistry with
+      registrar = parties.regulator
+      investor = parties.investor1
+      investorId = "INV-001"
+      jurisdiction = "TR"
+      status = Pending
+      kycVerifiedDate = None
+      accreditedDate = None
+      maxInvestment = 500000.0
+
+  -- Complete KYC verification
+  verifiedCid <- submit parties.regulator do
+    exerciseCmd registryCid UpdateStatus with
+      newStatus = Accredited
+      verificationDate = date 2024 Dec 18
+
+  pure verifiedCid
+
+-- ============================================
+-- TEST: Full Token Purchase Flow
+-- ============================================
+
+testTokenPurchase : Script ()
+testTokenPurchase = do
+  parties <- setupParties
+
+  -- Step 1: Create property
+  propertyCid <- testCreateProperty
+
+  -- Step 2: Register and verify investor
+  registryCid <- submit parties.regulator do
+    createCmd InvestorRegistry with
+      registrar = parties.regulator
+      investor = parties.investor1
+      investorId = "INV-001"
+      jurisdiction = "TR"
+      status = Accredited
+      kycVerifiedDate = Some (date 2024 Dec 18)
+      accreditedDate = Some (date 2024 Dec 18)
+      maxInvestment = 100000.0
+
+  -- Step 3: Create purchase order
+  orderCid <- submit parties.investor1 do
+    createCmd TokenPurchaseOrder with
+      buyer = parties.investor1
+      issuer = parties.issuer
+      regulator = parties.regulator
+      propertyId = "prop-001"
+      tokenAmount = 10
+      offerPrice = 1000.0
+      totalAmount = 10000.0
+      orderDate = time (date 2024 Dec 20) 10 0 0
+      status = OrderPending
+      complianceChecked = True
+
+  -- Step 4: Approve order
+  approvedOrderCid <- submit parties.issuer do
+    exerciseCmd orderCid ApproveOrder with
+      approvalNote = "Compliance verified, investor accredited"
+
+  -- Step 5: Execute order - issue tokens
+  holdingCid <- submit parties.issuer do
+    exerciseCmd approvedOrderCid ExecuteOrder with
+      propertyContract = propertyCid
+
+  -- Step 6: Verify holding exists
+  Some holding <- queryContractId parties.investor1 holdingCid
+  assertMsg "Token amount mismatch" (holding.tokens == 10)
+  assertMsg "Token symbol mismatch" (holding.tokenSymbol == "BOSV")
+
+  pure ()
+
+-- ============================================
+-- TEST: Token Transfer Between Investors
+-- ============================================
+
+testTokenTransfer : Script ()
+testTokenTransfer = do
+  parties <- setupParties
+
+  -- Setup: Create property and issue tokens to investor1
+  propertyCid <- testCreateProperty
+
+  holdingCid <- submit parties.issuer do
+    exerciseCmd propertyCid IssueTokens with
+      investor = parties.investor1
+      tokenAmount = 20
+      purchasePrice = 20000.0
+
+  -- Transfer 5 tokens to investor2
+  newHoldingCid <- submit parties.investor1 do
+    exerciseCmd holdingCid Transfer with
+      newHolder = parties.investor2
+      transferTokens = 5
+
+  -- Verify transfer
+  Some newHolding <- queryContractId parties.investor2 newHoldingCid
+  assertMsg "Transfer amount incorrect" (newHolding.tokens == 5)
+  assertMsg "New holder incorrect" (newHolding.holder == parties.investor2)
+
+  pure ()
+
+-- ============================================
+-- TEST: Dividend Distribution
+-- ============================================
+
+testDividendDistribution : Script ()
+testDividendDistribution = do
+  parties <- setupParties
+
+  -- Setup: Create property and issue tokens
+  propertyCid <- testCreateProperty
+
+  holdingCid <- submit parties.issuer do
+    exerciseCmd propertyCid IssueTokens with
+      investor = parties.investor1
+      tokenAmount = 100  -- ~4.17% of total supply
+      purchasePrice = 100000.0
+
+  -- Distribute dividends
+  dividendCid <- submit parties.issuer do
+    exerciseCmd holdingCid ClaimDividend with
+      distributionAmount = 16400.0  -- Monthly distribution
+      distributionDate = date 2025 Jan 1
+
+  -- Verify dividend payment created
+  Some dividend <- queryContractId parties.investor1 dividendCid
+  assertMsg "Dividend property mismatch" (dividend.propertyId == "prop-001")
+
+  -- Acknowledge payment
+  submit parties.investor1 do
+    exerciseCmd dividendCid AcknowledgePayment
+
+  pure ()
+
+-- ============================================
+-- TEST: Compliance Check
+-- ============================================
+
+testComplianceCheck : Script ()
+testComplianceCheck = do
+  parties <- setupParties
+
+  -- Create verified investor in TR jurisdiction
+  registryCid <- submit parties.regulator do
+    createCmd InvestorRegistry with
+      registrar = parties.regulator
+      investor = parties.investor1
+      investorId = "INV-001"
+      jurisdiction = "TR"
+      status = Verified
+      kycVerifiedDate = Some (date 2024 Dec 18)
+      accreditedDate = None
+      maxInvestment = 50000.0
+
+  -- Property compliance (requires accredited for commercial)
+  let commercialCompliance = ComplianceStatus with
+        kycVerified = True
+        accreditedOnly = True  -- Requires accredited investor
+        jurisdictions = ["TR", "EU"]
+        regulatoryApprovals = ["SPK"]
+
+  -- Check eligibility - should fail (not accredited)
+  eligible <- submit parties.regulator do
+    exerciseCmd registryCid CheckEligibility with
+      propertyCompliance = commercialCompliance
+
+  assertMsg "Non-accredited investor should not be eligible" (not eligible)
+
+  pure ()
+
+-- ============================================
+-- FULL DEMO SCENARIO
+-- ============================================
+
+-- | Complete demo scenario for hackathon presentation
+fullDemoScenario : Script ()
+fullDemoScenario = do
+  -- Setup parties
+  issuer <- allocateParty "IstanbulRETrust"
+  regulator <- allocateParty "SPK_Regulator"
+  investor <- allocateParty "DemoInvestor"
+
+  debug "=== Canton Realty XR Demo Scenario ==="
+  debug "Creating tokenized real estate on Canton Network..."
+
+  -- 1. Create Bosphorus Villa
+  let location = Location with
+        city = "Istanbul"
+        district = "Bebek"
+        country = "Turkey"
+        latitude = 41.0764
+        longitude = 29.0432
+
+  let valuation = Valuation with
+        totalValue = 2400000.0
+        pricePerToken = 1000.0
+        lastAppraisal = date 2024 Dec 15
+        appraiser = "TSKB Real Estate Valuation"
+
+  let yieldInfo = YieldInfo with
+        annualYield = 8.2
+        monthlyRent = 12000.0
+        occupancyRate = 95.0
+        lastDistribution = date 2024 Dec 1
+
+  let compliance = ComplianceStatus with
+        kycVerified = True
+        accreditedOnly = False
+        jurisdictions = ["TR", "EU", "US"]
+        regulatoryApprovals = ["SPK", "BDDK"]
+
+  propertyCid <- submit issuer do
+    createCmd RealEstateProperty with
+      issuer = issuer
+      regulator = regulator
+      propertyId = "prop-001"
+      name = "Bosphorus Villa"
+      propertyType = Residential
+      location = location
+      valuation = valuation
+      yieldInfo = yieldInfo
+      compliance = compliance
+      documents = []
+      totalTokens = 2400
+      availableTokens = 2400
+      tokenSymbol = "BOSV"
+
+  debug "✓ Property 'Bosphorus Villa' tokenized: 2400 BOSV tokens"
+
+  -- 2. Register investor with KYC
+  registryCid <- submit regulator do
+    createCmd InvestorRegistry with
+      registrar = regulator
+      investor = investor
+      investorId = "DEMO-001"
+      jurisdiction = "TR"
+      status = Accredited
+      kycVerifiedDate = Some (date 2024 Dec 20)
+      accreditedDate = Some (date 2024 Dec 20)
+      maxInvestment = 100000.0
+
+  debug "✓ Investor KYC verified and accredited"
+
+  -- 3. Purchase tokens
+  holdingCid <- submit issuer do
+    exerciseCmd propertyCid IssueTokens with
+      investor = investor
+      tokenAmount = 10
+      purchasePrice = 10000.0
+
+  debug "✓ Investor purchased 10 BOSV tokens for $10,000"
+
+  -- 4. Distribute dividend
+  dividendCid <- submit issuer do
+    exerciseCmd holdingCid ClaimDividend with
+      distributionAmount = 16400.0
+      distributionDate = date 2025 Jan 1
+
+  debug "✓ Dividend payment created for token holder"
+
+  debug "=== Demo Complete ==="
+  debug "All transactions recorded on Canton Network with full privacy"
+
+  pure ()
