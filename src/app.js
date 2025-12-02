@@ -11,17 +11,40 @@
 
 let scene, camera, selectedProperty = null;
 let isVRMode = false;
-let audioContextResumed = false; // Flag to ensure audio context is resumed only once
+let audioContextResumed = false;
 
 // Function to resume audio context and play ambient sound
 function resumeAudioContext() {
     if (audioContextResumed) return;
 
     const ambientSound = document.querySelector('#ambient-sound');
-    if (ambientSound && ambientSound.components.sound) {
-        ambientSound.components.sound.playSound();
-        console.log('🎵 Ambient sound resumed/played after user gesture.');
-        audioContextResumed = true;
+    
+    // Resume Web Audio API Context (Critical for Chrome/Edge)
+    if (AFRAME.THREE.AudioContext.getContext().state === 'suspended') {
+        AFRAME.THREE.AudioContext.getContext().resume();
+    }
+
+    if (ambientSound) {
+        // Wait for component to be ready if needed
+        if (ambientSound.components.sound) {
+            ambientSound.components.sound.playSound();
+            console.log('🎵 Ambient sound playing...');
+            audioContextResumed = true;
+            
+            // Remove listeners since we are done
+            document.removeEventListener('click', resumeAudioContext);
+            document.removeEventListener('keydown', resumeAudioContext);
+            document.removeEventListener('touchstart', resumeAudioContext);
+        } else {
+            // Retry if component not yet initialized
+            ambientSound.addEventListener('componentinitialized', function (evt) {
+                if (evt.detail.name === 'sound') {
+                    this.components.sound.playSound();
+                    console.log('🎵 Ambient sound playing (delayed init)...');
+                    audioContextResumed = true;
+                }
+            });
+        }
     }
 }
 
@@ -32,9 +55,10 @@ document.addEventListener('DOMContentLoaded', async () => {
     console.log("🚀 Canton Realty XR Initializing...");
     
     // Attach event listeners for user gestures to resume audio context
-    document.addEventListener('click', resumeAudioContext, { once: true });
-    document.addEventListener('keydown', resumeAudioContext, { once: true });
-    document.addEventListener('touchstart', resumeAudioContext, { once: true });
+    // Using { once: false } initially to ensure we catch the FIRST valid interaction that successfully resumes audio
+    document.body.addEventListener('click', resumeAudioContext);
+    document.body.addEventListener('keydown', resumeAudioContext);
+    document.body.addEventListener('touchstart', resumeAudioContext);
     
     // Get references
     scene = document.querySelector('#scene');
