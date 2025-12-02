@@ -411,15 +411,14 @@
         <!-- Assets -->
         <a-assets timeout="30000">
             <!-- Property Textures -->
-            <img id="corporate-texture" src="src/assets/images/corporate_office.jpg">
-            <img id="glass-texture" src="src/assets/images/glass-texture.jpg">
             <img id="plaza-texture" src="src/assets/images/plaza-texture.jpg">
             <img id="skybox-texture" src="src/assets/images/skybox.png">
-            
+            <!-- New Roof Texture -->
+            <img id="roof-texture" src="src/assets/images/roof-texture.jpg">
+
             <!-- Audio Assets -->
             <audio id="background-sound" src="src/assets/audio/backgroundnoise.mp3" preload="auto" loop="true"></audio>
             
-            <!-- Placeholder textures - these would be replaced with actual property images -->
             <img id="floor-texture" src="https://cdn.aframe.io/a-painter/images/floor.jpg" crossorigin="anonymous">
             <a-mixin id="controller-ray" raycaster="objects: *; far: 50; showLine: true; lineColor: #00d4aa; lineOpacity: 0.75"></a-mixin>
         </a-assets>
@@ -431,7 +430,7 @@
         <a-entity light="type: point; color: #00d4aa; intensity: 0.5; distance: 10" position="0 2 0"></a-entity>
 
         <!-- Ambient Background Sound -->
-        <a-sound src="#background-sound" autoplay="true" volume="0.2" position="0 0 0" id="ambient-sound"></a-sound>
+        <a-sound src="#background-sound" volume="0.2" position="0 0 0" id="ambient-sound"></a-sound>
 
         <!-- Main Hologram Sign -->
         <a-entity position="0 6 -5">
@@ -484,6 +483,15 @@
                 height="3" 
                 depth="2"
                 material="src: #corporate-texture; roughness: 0.5"
+            ></a-box>
+            
+            <!-- Realistic Roof Cap -->
+            <a-box 
+                position="0 3.05 0" 
+                width="2.05" 
+                height="0.1" 
+                depth="2.05"
+                material="src: #roof-texture; color: #888888; roughness: 0.5; metalness: 0.2; repeat: 1 1"
             ></a-box>
             
             <!-- Info Label -->
@@ -546,6 +554,15 @@
                 height="2.5" 
                 depth="1.8"
                 material="src: #plaza-texture; roughness: 0.6"
+            ></a-box>
+            
+            <!-- Realistic Roof Cap -->
+            <a-box 
+                position="0 2.5 0" 
+                width="2.1" 
+                height="0.1" 
+                depth="1.7"
+                material="src: #roof-texture; color: #888888; roughness: 0.5; metalness: 0.2; repeat: 1 1"
             ></a-box>
             
             <!-- Info Label -->

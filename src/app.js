@@ -11,12 +11,30 @@
 
 let scene, camera, selectedProperty = null;
 let isVRMode = false;
+let audioContextResumed = false; // Flag to ensure audio context is resumed only once
+
+// Function to resume audio context and play ambient sound
+function resumeAudioContext() {
+    if (audioContextResumed) return;
+
+    const ambientSound = document.querySelector('#ambient-sound');
+    if (ambientSound && ambientSound.components.sound) {
+        ambientSound.components.sound.playSound();
+        console.log('🎵 Ambient sound resumed/played after user gesture.');
+        audioContextResumed = true;
+    }
+}
 
 // Register custom A-Frame components immediately to avoid race conditions
 registerAFrameComponents();
 
 document.addEventListener('DOMContentLoaded', async () => {
     console.log("🚀 Canton Realty XR Initializing...");
+    
+    // Attach event listeners for user gestures to resume audio context
+    document.addEventListener('click', resumeAudioContext, { once: true });
+    document.addEventListener('keydown', resumeAudioContext, { once: true });
+    document.addEventListener('touchstart', resumeAudioContext, { once: true });
     
     // Get references
     scene = document.querySelector('#scene');
