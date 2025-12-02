@@ -1,4 +1,4 @@
-# Canton Realty XR
+# Canton XRealty
 
 **WebXR Mixed Reality Real Estate Marketplace**
 *Tokenized Real World Assets on Canton Network*
@@ -17,7 +17,7 @@
 
 ## Overview
 
-Canton Realty XR is a Mixed Reality marketplace for tokenized real estate assets. Using Meta Quest 3's passthrough technology, investors can visualize tokenized properties in their physical environment and execute compliant investments on the Canton Network.
+Canton XRealty is a Mixed Reality marketplace for tokenized real estate assets. Using Meta Quest 3's passthrough technology, investors can visualize tokenized properties in their physical environment and execute compliant investments on the Canton Network.
 
 ### Why Canton Network?
 
@@ -56,7 +56,7 @@ Canton Realty XR is a Mixed Reality marketplace for tokenized real estate assets
 
 ```
 ┌─────────────────────────────────────────────────────────────────┐
-│                        CANTON REALTY XR                         │
+│                        CANTON XREALTY                           │
 ├─────────────────────────────────────────────────────────────────┤
 │                                                                 │
 │  ┌─────────────┐     ┌─────────────┐     ┌─────────────┐       │
@@ -381,7 +381,7 @@ MIT License - See [LICENSE](LICENSE) for details
 
 <div align="center">
 
-**Canton Realty XR** - *The Future of Real Estate Investment*
+**Canton XRealty** - *The Future of Real Estate Investment*
 
 [Live Demo](https://canton-realty-xr.vercel.app) · [Canton Network](https://canton.network) · [DAML Docs](https://docs.daml.com)
 
