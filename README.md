@@ -3,6 +3,8 @@
 **WebXR Mixed Reality Real Estate Marketplace**
 *Tokenized Real World Assets on Canton Network*
 
+![Canton XRealty Screenshot](src/assets/images/screenshot.jpg)
+
 ## Live Demo
 
 **Live Application**: [canton-xrealty.vercel.app](https://canton-xrealty.vercel.app)
