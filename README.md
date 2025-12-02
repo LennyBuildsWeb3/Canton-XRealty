@@ -5,7 +5,7 @@
 
 ## Live Demo
 
-**Live Application**: [canton-realty-xr.vercel.app](https://canton-realty-xr.vercel.app)
+**Live Application**: [canton-xrealty.vercel.app](https://canton-xrealty.vercel.app)
 
 **Demo Video**: *(Coming Soon - Quest 3 Mixed Reality Walkthrough)*
 
@@ -383,6 +383,6 @@ MIT License - See [LICENSE](LICENSE) for details
 
 **Canton XRealty** - *The Future of Real Estate Investment*
 
-[Live Demo](https://canton-realty-xr.vercel.app) · [Canton Network](https://canton.network) · [DAML Docs](https://docs.daml.com)
+[Live Demo](https://canton-xrealty.vercel.app) · [Canton Network](https://canton.network) · [DAML Docs](https://docs.daml.com)
 
 </div>
