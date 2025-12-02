@@ -26,47 +26,47 @@ const CANTON_MOCK_DATA = {
         "prop-001": {
             // Property Details
             id: "prop-001",
-            name: "Central Park Penthouse",
-            type: "Residential - Luxury",
+            name: "Corporate Center",
+            type: "Commercial - Office",
             location: {
                 city: "New York",
-                district: "Upper West Side",
+                district: "Midtown",
                 country: "United States",
-                coordinates: { lat: 40.7794, lng: -73.9632 }
+                coordinates: { lat: 40.7580, lng: -73.9855 }
             },
-            description: "Luxury penthouse with Central Park views. 4 bedrooms, 3,200 sq ft, full amenities.",
+            description: "Premium corporate office space in Midtown. 5 floors, 12,000 sq ft, modern amenities.",
 
             // Financial Data
             valuation: {
-                totalValue: 3200000,
+                totalValue: 4500000,
                 currency: "USD",
-                pricePerToken: 1000,
-                lastAppraisal: "2024-12-15",
+                pricePerToken: 1500,
+                lastAppraisal: "2024-12-10",
                 appraiser: "Cushman & Wakefield"
             },
 
             // Token Information
             token: {
-                contractId: "canton:manhattan-re-001:central-park-penthouse",
-                symbol: "CPPH",
-                totalSupply: 3200,
-                availableTokens: 2240,
-                soldTokens: 960,
+                contractId: "canton:manhattan-re-001:corporate-center",
+                symbol: "CPCT",
+                totalSupply: 3000,
+                availableTokens: 2100,
+                soldTokens: 900,
                 minInvestment: 1, // 1 token minimum
-                maxInvestment: 320 // Max 10% per investor
+                maxInvestment: 300 // Max 10% per investor
             },
 
             // Yield & Returns
             yields: {
-                annualYield: 8.5,
-                monthlyRent: 22667,
-                occupancyRate: 100,
+                annualYield: 7.8,
+                monthlyRent: 29250,
+                occupancyRate: 95,
                 lastDistribution: "2024-12-01",
                 nextDistribution: "2025-01-01",
                 historicalReturns: [
-                    { year: 2022, return: 8.1 },
-                    { year: 2023, return: 8.8 },
-                    { year: 2024, return: 8.5 }
+                    { year: 2022, return: 7.2 },
+                    { year: 2023, return: 7.5 },
+                    { year: 2024, return: 7.8 }
                 ]
             },
 
@@ -76,7 +76,7 @@ const CANTON_MOCK_DATA = {
                 kycRequired: true,
                 accreditedOnly: true,
                 jurisdictions: ["US", "EU", "UK", "TR"],
-                legalEntity: "Central Park RE SPV LLC",
+                legalEntity: "Midtown Office RE SPV LLC",
                 regulatoryApprovals: ["SEC-Reg-D", "FINRA"]
             },
             
@@ -90,7 +90,8 @@ const CANTON_MOCK_DATA = {
             
             // 3D Model Reference
             model: {
-                type: "procedural", // For demo, we use procedural A-Frame geometry
+                type: "textured-box", 
+                texture: "corporate-texture",
                 scale: 0.3,
                 position: { x: -1.5, y: 0.5, z: -2 }
             }
