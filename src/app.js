@@ -496,6 +496,14 @@ function updatePropertyPanel(property) {
     document.getElementById('panel-tokens').textContent = 
         formatNumber(property.token.availableTokens);
     
+    // Update Commercial Specs
+    document.getElementById('panel-year').textContent = property.constructionYear || '2020';
+    document.getElementById('panel-occupancy').textContent = `${property.yields.occupancyRate}% Occ.`;
+    
+    // Extract area from description (simple regex or fallback)
+    const areaMatch = property.description.match(/([\d,]+)\s*sq\s*ft/i);
+    document.getElementById('panel-area').textContent = areaMatch ? `${areaMatch[1]} sqft` : 'N/A';
+
     // Update invest button state
     const investBtn = document.querySelector('.invest-btn');
     if (property.token.availableTokens === 0) {

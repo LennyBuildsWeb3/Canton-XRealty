@@ -28,6 +28,7 @@ const CANTON_MOCK_DATA = {
             id: "prop-001",
             name: "Corporate Center",
             type: "Commercial - Office",
+            constructionYear: 2018, // Added metric
             location: {
                 city: "New York",
                 district: "Midtown",
@@ -101,6 +102,7 @@ const CANTON_MOCK_DATA = {
             id: "prop-002",
             name: "Hudson Yards Tower",
             type: "Residential - Apartment",
+            constructionYear: 2022,
             location: {
                 city: "New York",
                 district: "Hudson Yards",
@@ -166,6 +168,7 @@ const CANTON_MOCK_DATA = {
             id: "prop-003",
             name: "Wall Street Plaza",
             type: "Commercial - Office",
+            constructionYear: 2010,
             location: {
                 city: "New York",
                 district: "Financial District",

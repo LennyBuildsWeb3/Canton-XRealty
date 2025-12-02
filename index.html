@@ -275,6 +275,30 @@
             letter-spacing: 0.05em;
             margin-top: 0.25rem;
         }
+
+        /* Commercial Specs Styles */
+        .panel-specs {
+            display: flex;
+            justify-content: space-between;
+            background: rgba(255, 255, 255, 0.05);
+            padding: 0.75rem 1rem;
+            border-radius: 8px;
+            margin-bottom: 1.25rem;
+            border: 1px solid rgba(255, 255, 255, 0.1);
+        }
+
+        .spec-item {
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+            font-size: 0.9rem;
+            color: #ccddee;
+            font-family: 'Space Mono', monospace;
+        }
+
+        .spec-icon {
+            font-size: 1rem;
+        }
         
         .invest-btn {
             width: 100%;
@@ -389,6 +413,23 @@
                 <div class="stat-label">TOKENS</div>
             </div>
         </div>
+
+        <!-- Commercial Specs Row -->
+        <div class="panel-specs">
+            <div class="spec-item">
+                <span class="spec-icon">📅</span>
+                <span id="panel-year">2020</span>
+            </div>
+            <div class="spec-item">
+                <span class="spec-icon">👥</span>
+                <span id="panel-occupancy">98% Occ.</span>
+            </div>
+            <div class="spec-item">
+                <span class="spec-icon">📐</span>
+                <span id="panel-area">12,000 sqft</span>
+            </div>
+        </div>
+
         <button class="invest-btn" onclick="handleInvest()">INVEST NOW</button>
     </div>
 
