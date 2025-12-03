@@ -9,7 +9,7 @@
 
 **Live Application**: [canton-xrealty.vercel.app](https://canton-xrealty.vercel.app)
 
-**Demo Video**: *(Coming Soon - Quest 3 Mixed Reality Walkthrough)*
+**Demo Video**: *[(Meta Quest 3 Mixed Reality Walkthrough)](https://youtu.be/eVdH0cpgMic)*
 
 [![Canton Network](https://img.shields.io/badge/Canton-Network-00d4aa)](https://www.canton.network/)
 [![WebXR](https://img.shields.io/badge/WebXR-Quest%203-blue)](https://immersive-web.github.io/webxr/)
